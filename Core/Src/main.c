@@ -114,6 +114,29 @@ int main(void)
   /* USER CODE BEGIN 2 */
   SEGGER_RTT_Init();
 
+  CAN_FilterTypeDef can_filter;
+  can_filter.FilterBank = 0;
+  can_filter.FilterMode = CAN_FILTERMODE_IDMASK;
+  can_filter.FilterScale = CAN_FILTERSCALE_16BIT;
+  can_filter.FilterIdHigh = 0x0000;
+  can_filter.FilterIdLow = 0x0000;
+  can_filter.FilterMaskIdHigh = 0x0000;
+  can_filter.FilterMaskIdLow = 0x0000;
+  can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
+  can_filter.FilterActivation = ENABLE;
+
+  if (HAL_CAN_ConfigFilter(&hcan1, &can_filter) != HAL_OK) {
+    SEGGER_RTT_printf(0, "CAN filter failed\r\n");
+    Error_Handler();
+  }
+
+  HAL_CAN_Start(&hcan1);
+
+  if( HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
+    SEGGER_RTT_printf(0, "CAN notification failed\r\n");
+    Error_Handler();
+  }
+
   if (HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 4) != HAL_OK) {
     SEGGER_RTT_printf(0, "ADC start failed\r\n");
     Error_Handler();
@@ -464,7 +487,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+  CAN_RxHeaderTypeDef rx_header;
+  uint8_t rx_data[128];
 
+  HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data);
+  SEGGER_RTT_printf(0, "CAN: 0x%x\r\n", rx_header.StdId);
+  for (int i = 0; i < rx_header.DLC; i++)
+    SEGGER_RTT_printf(0, "%02x ", rx_data[i]);
+  SEGGER_RTT_printf(0, "\r\n");
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -481,8 +513,8 @@ void StartDefaultTask(void *argument)
   for(;;)
   {
     uint32_t tick = osKernelGetTickCount();
-    SEGGER_RTT_printf(0, "ADC: %d %d %d %d %d\r\n", tick, adc_buffer[0], adc_buffer[1], adc_buffer[2], adc_buffer[3]);
-    osDelay(1);
+    // SEGGER_RTT_printf(0, "ADC: %d %d %d %d %d\r\n", tick, adc_buffer[0], adc_buffer[1], adc_buffer[2], adc_buffer[3]);
+    osDelay(1000);
   }
   /* USER CODE END 5 */
 }
